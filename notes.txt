@@ -1,0 +1,59 @@
+# 1-10-15
+
+I finally poked around Jison & I finally started working on a JSON parser.
+
+I spent a couple of minutes getting lost. Then I tried using the mode features of Jison, but I couldn't get that to work.
+
+Of course one of the examples was a json parser. At first I said 'no, I'm not going to look at that', but I eventually decided to glance. It was pure javascript, so I ended up starting to reverse engineer the bison file, which was fun.
+
+I was stuck for a little while, the code was always returning true. It turns out, whatever you return from the 'start' expression will be the return value for the parse function.
+
+The lex/bison file layout finally started to feel a little more intuitive. It's something that I've tried to learn like 3 times.
+
+By the end of the session, I had a parser which could tokenize & recognize an empty array. Boom! What!
+
+## I really like ...
+
+- the fact that it has modes
+- the fact that it has macros ... even if I don't understand them.
+
+## next steps
+
+- setting up some really basic assertions in a test script
+- reading about flex macros
+- adding the string and number types
+
+#  1-11-15
+
+I set up node's assert, using underscore to check for object equality.
+
+
+I added number types next. At first, I wanted to return the literal text of the matched token, for a sequence of digits. However, that doesn't work - if you return it, you will need to match the text of the token *inside* the phrase rule too. Nope, the lexer should handle that.
+I grokked that the text following a rule was just code. You can think of it as it gets interpolated into a function which is called in case of a match. In flex, a return statement in a rule returns a value to the parser, which is asking for a new token. In the bison grammar rules, you set the return value for by storing a value in `$$`, which will be made available in parent rules as `$1, `$2, etc, depending on it's position in the sequence of nonterminals required to have a match.
+I learned that yytext is available in code for both the lexical and phrase rules. It is a variable which contains the matched token. What you need to do is return a label (like 'NUMBER'). The parsing code can match that, and the do whatever it wants with yytext. (like cast the value to a number).
+
+It took me a little while catch on to this, but as you're developing new lexical & parsing rules, Jison will tell you if the problem is in the lexer or the parser. A lexical rule error message starts with `Error: Lexical error on line...`. A parse error `Error: Parse error on line`. It's actually extremely obvious!
+
+Once I'd added a few rules, it was a pretty mechanical process to add the rest. I didn't bother to implement exponential numbers, and I ended up copying the string regex from the example json parser in the jison source. It's pretty complicated. I thought about using lexing modes, but I just wanted to get it done. And move on with my life!
+
+## future extensions
+In the shower I realized HTML wouldn't be that much harder. I'm also curious to implement it in Rust. Maybe one of those things will happen in two years!
+
+## I was surprised by ...
+
+- JavaScript not having a simple notion of array equality. WTF guys.
+  - I imported underscore, which I probably would have done eventually
+  - wierd to need it so soon!
+
+- the ugliness of the stack trace
+  - I don't really care about Module._compile, I just want to see errors in code I own
+  - It makes me want to rework [golick's quiet_backtrace](http://jamesgolick.com/2007/12/1/noisy-backtraces-got-you-down.html)
+
+- while adding rules for `2.2`, the parser was declaring itself complete after matching on `2`, but there was definitely unprocessed text: `.2`.
+  - no idea how that happened
+
+- How closely the structure on the [sidebar at json.org](http://www.json.org/) matched the final grammar. It was almost the exact same thing. Setting aside some of the lex & bison syntax, the main difference is that json.org presents the phrase rules (nonterminals) before the token rules (terminals).
+
+## takeaways
+
+Bison & Flex seem more complicated than they really are, it just takes time to get used to them. If you feel intimidated by them, don't worry! It took me 3 tries spaced over ~8 years to feel like I got them & I could use them. I wasn't trying that hard, but still I'm sure you could get it if you tried it a couple of times spaced out over a few months.
